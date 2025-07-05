@@ -1,0 +1,10 @@
+
+# Environment variables
+.env
+
+# Other standard Django ignores
+__pycache__/
+*.pyc
+db.sqlite3
+/media/
+/static/
