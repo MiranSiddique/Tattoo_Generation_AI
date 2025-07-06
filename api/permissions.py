@@ -2,7 +2,7 @@ from rest_framework import permissions
 from .models import APIUsage
 import datetime
 
-# A simple rule for now: Free users get 5 creations per day.
+# Free users get 5 creations per day.
 FREE_TIER_LIMIT = 5
 
 class IsProUser(permissions.BasePermission):

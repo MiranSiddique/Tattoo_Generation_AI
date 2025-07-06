@@ -1,4 +1,3 @@
-# api/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (
@@ -42,5 +41,3 @@ urlpatterns = [
     path('subscriptions/verify-purchase/', VerifyMobilePurchaseView.as_view(), name='verify-purchase'),
 ]
 
-# In your project's main urls.py:
-# path('api/', include('api.urls')),

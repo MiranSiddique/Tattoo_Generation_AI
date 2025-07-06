@@ -1,4 +1,3 @@
-# api/views.py
 from rest_framework import generics, viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -16,8 +15,6 @@ from .permissions import HasCreationQuota
 from .tasks import generate_tattoo_from_prompt
 import datetime
 
-# Using Djoser for authentication is recommended for production,
-# but here's a simple registration view for completeness.
 class UserRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -38,7 +35,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 class TattooStyleListView(generics.ListAPIView):
     """
     GET /api/styles/ -> List all active tattoo styles.
-    Powers the "Select Style" section on the prompt screen.
+    Used for the style selection section on the prompt screen.
     """
     queryset = TattooStyle.objects.filter(is_active=True)
     serializer_class = TattooStyleSerializer
@@ -46,13 +43,12 @@ class TattooStyleListView(generics.ListAPIView):
 
 class TattooDesignViewSet(viewsets.ModelViewSet):
     """
-    The core ViewSet for creating and managing designs.
+    ViewSet for creating and managing tattoo designs.
     """
     queryset = TattooDesign.objects.all()
     serializer_class = TattooDesignSerializer
 
     def get_permissions(self):
-        """Instantiates and returns the list of permissions that this view requires."""
         if self.action == 'create':
             permission_classes = [IsAuthenticated, HasCreationQuota]
         else:
@@ -60,7 +56,7 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-        """This view should only return designs for the currently authenticated user."""
+        # Only return designs for the currently authenticated user.
         return TattooDesign.objects.filter(user=self.request.user)
 
     def get_serializer_class(self):
@@ -71,7 +67,7 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Overrides the default create behavior to construct the prompt and
-        trigger the async task.
+        trigger the async task for tattoo generation.
         """
         data = serializer.validated_data
         style = data['style']
@@ -97,10 +93,10 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
             status='processing'
         )
 
-        # 3. Trigger the Celery task
+        # 3. Trigger the async task for tattoo generation
         task_thread = threading.Thread(
             target=generate_tattoo_from_prompt,
-            args=(design.id, final_prompt)  # Pass arguments as a tuple
+            args=(design.id, final_prompt)
         )
         task_thread.start()
 
@@ -114,10 +110,8 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
             usage.requests_count += 1
             usage.save()
         
-        # We must manually set the instance on the serializer to return the created object
-        # but since we are returning the object with a different serializer we do it in the response.
+        # Set the instance on the serializer to return the created object
         self.instance = design
-
 
     def create(self, request, *args, **kwargs):
         """
@@ -131,7 +125,6 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
         response_serializer = TattooDesignSerializer(self.instance, context={'request': request})
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
 
     @action(detail=True, methods=['post'], url_path='favorite')
     def favorite(self, request, pk=None):
@@ -151,10 +144,9 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
         UserFavorite.objects.filter(user=request.user, design=design).delete()
         return Response({'status': 'unfavorited'}, status=status.HTTP_204_NO_CONTENT)
 
-
 class GalleryListView(generics.ListAPIView):
     """
-    GET /api/gallery/ -> Powers the home screen grid and the Search page.
+    GET /api/gallery/ -> Returns public completed designs for the home screen grid and search page.
     Supports filtering by style and searching by prompt text.
     e.g. /api/gallery/?style__name=traditional&search=dragon
     """
@@ -196,12 +188,10 @@ class VerifyMobilePurchaseView(generics.GenericAPIView):
         #
         # return Response({'status': 'failed'}, status=400)
         
-        # This is a complex feature, so for now we just simulate success
+        # This is a complex feature, so for I am just simulating success payment scenario
         user = request.user
         user.is_pro = True
         user.save()
         
-        # Update or create subscription object
-        # ...
         
         return Response({'status': 'Subscription activated successfully.'})

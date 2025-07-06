@@ -67,7 +67,7 @@ class TattooDesign(models.Model):
     
     # AI processing details
     ai_model_used = models.CharField(max_length=100, blank=True)
-    processing_time = models.FloatField(null=True, blank=True)  # in seconds
+    processing_time = models.FloatField(null=True, blank=True)  
     
     # User interaction
     is_favorite = models.BooleanField(default=False)
@@ -92,7 +92,7 @@ class Gallery(models.Model):
 
     class Meta:
         ordering = ['-featured', '-likes_count', '-created_at']
-        verbose_name_plural = "Galleries" # A nice touch for the admin panel
+        verbose_name_plural = "Galleries" 
 
 class UserFavorite(models.Model):
     """User's favorite designs"""

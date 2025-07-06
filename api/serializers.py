@@ -4,11 +4,9 @@ from .models import User, TattooStyle, TattooDesign, UserFavorite, Subscription
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        # Make sure to include 'password' in the fields
         fields = ['id', 'username', 'email', 'password', 'profile_picture', 'is_pro']
         read_only_fields = ['is_pro']
         extra_kwargs = {
-            # Ensure the password is write-only. We don't want to send it back in responses.
             'password': {'write_only': True}
         }
     
@@ -18,17 +16,15 @@ class UserSerializer(serializers.ModelSerializer):
         It uses Django's `create_user` method to ensure the password is
         hashed correctly and the user is set to active.
         """
-        # Pop the password from the validated data to handle it separately
         password = validated_data.pop('password', None)
-        
-        # Create the user instance using the remaining validated data
+    
         instance = self.Meta.model(**validated_data)
         
         if password is not None:
-            # Use set_password() to hash the password
+            # Using set_password() to hash the password
             instance.set_password(password)
         
-        # Save the user instance to the database
+        # Saving the user instance to the database
         instance.save()
         
         return instance
