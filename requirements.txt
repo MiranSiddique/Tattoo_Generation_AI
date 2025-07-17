@@ -6,7 +6,6 @@ django-background-tasks
 django-cors-headers
 requests
 python-dotenv
-rest_framework
 gunicorn
 psycopg2-binary
 dj-database-url
