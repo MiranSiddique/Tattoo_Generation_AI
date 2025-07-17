@@ -1,3 +1,6 @@
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
 from django.conf import settings
 from django.core.files.base import ContentFile
 from .models import TattooDesign
@@ -10,75 +13,87 @@ API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/F
 
 def generate_tattoo_from_prompt(design_id, final_prompt):
     """
-    Background task to generate a tattoo image asynchronously.
+    Background task that now MANUALLY handles the upload to Cloudflare R2,
+    bypassing django-storages for the upload step.
     """
     print(f"--- [WORKER LOG] Starting task for design ID: {design_id} ---")
-    
+
     try:
-        # --- 1. Log the Environment Variables the Worker Sees ---
-        print("[WORKER LOG] Verifying environment variables...")
-        
-        # We use os.environ.get() here because settings might cache old values.
-        # This reads the live environment variable from the container.
-        account_id = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
-        access_key = os.environ.get('CLOUDFLARE_ACCESS_KEY_ID')
-        secret_key = os.environ.get('CLOUDFLARE_SECRET_ACCESS_KEY')
-        bucket_name = os.environ.get('CLOUDFLARE_BUCKET_NAME')
-        public_domain = os.environ.get('CLOUDFLARE_PUBLIC_DOMAIN')
-
-        print(f"[WORKER LOG]   ACCOUNT_ID: {account_id}")
-        print(f"[WORK_LOG]   ACCESS_KEY_ID: {'******' if access_key else 'Not Set'}") # Don't log the full key
-        print(f"[WORK_LOG]   SECRET_ACCESS_KEY: {'******' if secret_key else 'Not Set'}") # Don't log the secret
-        print(f"[WORKER LOG]   BUCKET_NAME: {bucket_name}")
-        print(f"[WORKER LOG]   PUBLIC_DOMAIN: {public_domain}")
-
-        if not all([account_id, access_key, secret_key, bucket_name, public_domain]):
-            print("[WORKER LOG] 🔴 ERROR: One or more Cloudflare variables are missing in the worker environment!")
-            # Mark the task as failed
-            design = TattooDesign.objects.get(id=design_id)
-            design.status = 'failed'
-            design.save()
-            return # Stop execution here
-
-        print("[WORKER LOG] ✅ All variables seem to be present.")
-
-        # --- The rest of your task logic ---
         design = TattooDesign.objects.get(id=design_id)
-        start_time = time.time()
         
         print("[WORKER LOG] Calling Hugging Face API...")
         headers = {"Authorization": f"Bearer {settings.HF_API_TOKEN}"}
         response = requests.post(API_URL, headers=headers, json={"inputs": final_prompt})
         print(f"[WORKER LOG] Hugging Face API responded with status: {response.status_code}")
 
-        if response.status_code == 200:
-            image_bytes = response.content
-            print(f"[WORKER LOG] Received {len(image_bytes)} bytes from AI model.")
-            print("[WORKER LOG] Attempting to save image to R2 via django-storages...")
-            
-            # This is the critical line where the upload happens
-            design.generated_image.save(f'{design_id}.png', ContentFile(image_bytes), save=False)
-            
-            print("[WORKER LOG] ✅ design.generated_image.save() command executed without crashing.")
-            design.status = 'completed'
-        else:
+        if response.status_code != 200:
             print(f"[WORKER LOG] 🔴 AI Model failed. Status: {response.status_code}, Text: {response.text}")
             design.status = 'failed'
+            design.save()
+            return
 
-        end_time = time.time()
-        design.processing_time = end_time - start_time
-        design.ai_model_used = API_URL.split('/')[-1]
+        image_bytes = response.content
+        print(f"[WORKER LOG] Received {len(image_bytes)} bytes from AI model.")
+
+        # --- MANUAL R2 UPLOAD LOGIC STARTS HERE ---
+        print("[WORKER LOG] Starting manual upload process to R2...")
+
+        # 1. Get credentials directly from the environment
+        account_id = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
+        access_key_id = os.environ.get('CLOUDFLARE_ACCESS_KEY_ID')
+        secret_access_key = os.environ.get('CLOUDFLARE_SECRET_ACCESS_KEY')
+        bucket_name = os.environ.get('CLOUDFLARE_BUCKET_NAME')
+
+        if not all([account_id, access_key_id, secret_access_key, bucket_name]):
+            raise Exception("Cloudflare R2 credentials are missing in the environment.")
+
+        # 2. Initialize the boto3 client
+        s3_client = boto3.client(
+            service_name="s3",
+            endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            config=Config(signature_version="s3v4"),
+            region_name="auto",
+        )
+        print("[WORKER LOG]   boto3 client initialized.")
+
+        # 3. Define the object name (the full path in the bucket)
+        object_name = f"generated_tattoos/{design_id}.png"
         
+        # 4. Upload the image bytes directly from memory
+        try:
+            # We use `upload_fileobj` because we have bytes in memory, not a local file
+            from io import BytesIO
+            s3_client.upload_fileobj(
+                Fileobj=BytesIO(image_bytes),
+                Bucket=bucket_name,
+                Key=object_name,
+                ExtraArgs={'ContentType': 'image/png'} # Important to set the content type
+            )
+            print(f"[WORKER LOG] ✅ Successfully uploaded to R2 as '{object_name}'.")
+
+            # 5. Update the Django model field MANUALLY
+            # We are not using .save() on the field, we are just setting the text path.
+            design.generated_image.name = object_name
+            design.status = 'completed'
+
+        except ClientError as e:
+            print(f"[WORKER LOG] 🔴 R2 UPLOAD FAILED with ClientError: {e}")
+            design.status = 'failed'
+
+        # --- MANUAL R2 UPLOAD LOGIC ENDS HERE ---
+
+        # Save the final state of the design object to the database
         print(f"[WORKER LOG] Saving final design status to database: '{design.status}'")
         design.save()
         print(f"--- [WORKER LOG] Task for design ID {design_id} finished. ---")
 
     except Exception as e:
         print(f"[WORKER LOG] 🔴 An unexpected exception occurred in the task: {e}")
-        # Try to mark the task as failed if an exception happens
         try:
             design_fail = TattooDesign.objects.get(id=design_id)
             design_fail.status = 'failed'
             design_fail.save()
         except TattooDesign.DoesNotExist:
-            pass # The design was not even created, nothing to do.
+            pass
