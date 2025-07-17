@@ -35,7 +35,7 @@ ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_str.split(',') if host.s
 CSRF_TRUSTED_ORIGINS_str = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS_str.split(',') if origin.strip()]
 
-
+    
 # Application definition
 
 INSTALLED_APPS = [

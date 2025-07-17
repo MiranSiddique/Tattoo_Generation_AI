@@ -1,4 +1,3 @@
-from background_task import background
 from django.conf import settings
 from django.core.files.base import ContentFile
 from .models import TattooDesign
@@ -9,7 +8,6 @@ import os
 HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
 API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
 
-@background(schedule=0)
 def generate_tattoo_from_prompt(design_id, final_prompt):
     """
     Background task to generate a tattoo image asynchronously.
