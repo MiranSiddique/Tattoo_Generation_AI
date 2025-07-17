@@ -32,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
 class TattooStyleSerializer(serializers.ModelSerializer):
     class Meta:
         model = TattooStyle
-        fields = ['id', 'name', 'display_name', 'thumbnail', 'description']
+        fields = ['id', 'name', 'display_name',  'description']
 
 class TattooDesignCreateSerializer(serializers.Serializer):
     """Serializer for creating a new design. Captures all customization options."""

@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import User, TattooStyle, TattooDesign, Subscription, APIUsage, UserFavorite
 
 class TattooStyleAdmin(admin.ModelAdmin):
-    list_display = ('display_name', 'name', 'is_active', 'created_at')
+    list_display = ('display_name', 'name', 'is_active')
     list_filter = ('is_active',)
 
 admin.site.register(User)

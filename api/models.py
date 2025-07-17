@@ -32,10 +32,10 @@ class TattooStyle(models.Model):
     
     name = models.CharField(max_length=50, choices=STYLE_CHOICES, unique=True)
     display_name = models.CharField(max_length=100)
-    thumbnail = models.ImageField(upload_to='style_thumbnails/')
+    #thumbnail = models.ImageField(upload_to='style_thumbnails/')
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    #created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.display_name
