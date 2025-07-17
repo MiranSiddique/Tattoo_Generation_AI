@@ -6,7 +6,6 @@ import requests
 import time
 import os
 
-# Store the Hugging Face API Token in environment variables
 HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
 API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
 

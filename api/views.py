@@ -18,7 +18,7 @@ import datetime
 class UserRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny] # Anyone can register
+    permission_classes = [AllowAny] 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
@@ -88,7 +88,7 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
         # 2. Create the TattooDesign object
         design = TattooDesign.objects.create(
             user=self.request.user,
-            prompt=base_prompt, # Store original prompt
+            prompt=base_prompt, 
             style=style,
             status='processing'
         )
@@ -110,7 +110,6 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
             usage.requests_count += 1
             usage.save()
         
-        # Set the instance on the serializer to return the created object
         self.instance = design
 
     def create(self, request, *args, **kwargs):
@@ -121,7 +120,6 @@ class TattooDesignViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         
-        # Return the full design object using the detail serializer
         response_serializer = TattooDesignSerializer(self.instance, context={'request': request})
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -154,8 +152,8 @@ class GalleryListView(generics.ListAPIView):
     serializer_class = GalleryDesignSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['style__name'] # Allows ?style__name=gothic_text
-    search_fields = ['prompt'] # Allows ?search=dragon
+    filterset_fields = ['style__name'] # example: ?style__name=gothic_text
+    search_fields = ['prompt'] # example: ?search=dragon
 
 class FavoriteListView(generics.ListAPIView):
     """
@@ -180,7 +178,7 @@ class VerifyMobilePurchaseView(generics.GenericAPIView):
         # receipt_token = request.data.get('token')
         # plan_type = request.data.get('plan') # e.g., 'pro_yearly'
         #
-        # is_valid = verify_with_app_store(receipt_token) # Your verification logic here
+        # is_valid = verify_with_app_store(receipt_token)
         #
         # if is_valid:
         #   update_user_subscription(request.user, plan_type)

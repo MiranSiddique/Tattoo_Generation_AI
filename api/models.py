@@ -53,7 +53,6 @@ class TattooDesign(models.Model):
     prompt = models.TextField(max_length=1500)
     style = models.ForeignKey(TattooStyle, on_delete=models.CASCADE)
     
-    # For portrait tattoos
     source_image = models.ImageField(
         upload_to='source_images/', 
         null=True, 
